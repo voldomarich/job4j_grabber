@@ -22,8 +22,8 @@ public class AlertRabbit {
             scheduler.start();
             JobDetail job = newJob(RabbitProperties.class).build();
             SimpleScheduleBuilder times = simpleSchedule()
-                    .withIntervalInSeconds(20)
-                    .withRepeatCount(4);
+                    .withIntervalInSeconds(11)
+                    .withRepeatCount(3);
             Trigger trigger = newTrigger()
                     .startNow()
                     .withSchedule(times)
@@ -35,7 +35,6 @@ public class AlertRabbit {
     }
 
     public static class RabbitProperties implements Job {
-
         @Override
         public void execute(JobExecutionContext context) {
             File file = new File("rabbit.properties");
