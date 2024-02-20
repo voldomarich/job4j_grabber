@@ -1,17 +1,11 @@
-package ru.job4j.qwartz;
+package ru.job4j.grabber.qwartz;
 
 import org.quartz.*;
 import org.quartz.impl.StdSchedulerFactory;
 
 import java.io.*;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.LocalDateTime;
+import java.sql.*;
 import java.util.Properties;
-import java.util.TimeZone;
 
 import static org.quartz.JobBuilder.*;
 import static org.quartz.TriggerBuilder.*;
@@ -32,15 +26,15 @@ public class AlertRabbit {
 
     private static Connection getConnection() {
         Properties config = getProperties();
-        Connection connection;
+        Connection connection = null;
         try {
             Class.forName(config.getProperty("driver-class-name"));
             connection = DriverManager.getConnection(
                     config.getProperty("url"),
                     config.getProperty("username"),
                     config.getProperty("password"));
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
+        } catch (Exception exception) {
+            exception.printStackTrace();
         }
         return connection;
     }
@@ -75,7 +69,7 @@ public class AlertRabbit {
     public static class Rabbit implements Job {
 
         public Rabbit() {
-            System.out.println(hashCode());
+            System.out.println(this.hashCode());
         }
 
         @Override
@@ -87,10 +81,7 @@ public class AlertRabbit {
                     .get("connection")).
                     prepareStatement(
                             "insert into rabbit (created_date) values (?)")) {
-                LocalDateTime jobTime = LocalDateTime
-                        .ofInstant(Instant.ofEpochMilli(context.getFireTime().getTime()),
-                                TimeZone.getDefault().toZoneId());
-                ps.setTimestamp(1, Timestamp.valueOf(jobTime));
+                ps.setTimestamp(1, new Timestamp(System.currentTimeMillis()));
                 System.out.printf("Rabbit runs here with frequency: %s seconds",
                         context.getJobDetail()
                                 .getJobDataMap()
