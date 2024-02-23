@@ -11,6 +11,9 @@ public class Post {
     private String description;
     private LocalDateTime created;
 
+    public Post(String vacancyName, String url, String description, LocalDateTime parse) {
+    }
+
     public int getId() {
         return id;
     }
