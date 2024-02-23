@@ -10,10 +10,6 @@ import ru.job4j.grabber.utils.HabrCareerDateTimeParser;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
-import java.util.regex.Pattern;
 
 public class HabrCareerParse {
 
@@ -22,26 +18,16 @@ public class HabrCareerParse {
     public static final String SUFFIX = "&q=Java%20developer&type=all";
     private static final int PAGES = 1;
 
-    private static String retrieveDescription(String link) throws IOException {
+    private static String retrieveDescription(String link) {
         Connection connection = Jsoup.connect(link);
-        Document page = connection.get();
-        Elements rows = page.select(".collapsible-description__content");
-
-        List<String> list = new ArrayList<>();
-        rows.forEach(row -> {
-                    Scanner scanner = new Scanner(row.firstElementSibling().text());
-                    Pattern delimiter = Pattern.compile("</?\\w+>");
-                    scanner.useDelimiter(delimiter);
-                    scanner.forEachRemaining(list::add);
-                });
-
-        StringBuilder stringBuilder = new StringBuilder();
-        list.forEach(s -> {
-                    stringBuilder.append(s);
-                    stringBuilder.append(System.lineSeparator());
-                }
-        );
-        return stringBuilder.toString();
+        Document document = null;
+        try {
+            document = connection.get();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        assert document != null;
+        return document.select(".vacancy-description__text").text();
     }
 
     public static void main(String[] args) throws IOException {
@@ -64,16 +50,10 @@ public class HabrCareerParse {
                 HabrCareerDateTimeParser parser = new HabrCareerDateTimeParser();
                 LocalDateTime localDate = parser.parse(date);
 
-                String description;
-                try {
-                    description = retrieveDescription(fullLink);
-                    System.out.println(description);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-
+                String description = retrieveDescription(link);
                 System.out.printf("%s %s %s %s%n", vacancyName, link, localDate, description);
-        })
-    ;}
+                System.out.println();
+        });
+        }
     }
 }
