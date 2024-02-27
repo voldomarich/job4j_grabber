@@ -25,8 +25,9 @@ public class Grabber implements Grab {
     private final int time;
 
     private static final String SOURCE_LINK = "https://career.habr.com";
-    private static final String FULL_LINK =
-            String.format("%s/vacancies/java_developer?page=", SOURCE_LINK);
+    public static final String PREFIX = "/vacancies?page=";
+    public static final String SUFFIX = "&q=Java%20developer&type=all";
+    private static final int PAGES = 5;
 
     public Grabber(Parse parse, Store store, Scheduler scheduler, int time) {
         this.parse = parse;
@@ -46,8 +47,8 @@ public class Grabber implements Grab {
 
     public void web(Store store, int port) {
         new Thread(() -> {
-            try (ServerSocket server = new ServerSocket(port) {
-                while (!server.isClosed()) {
+            try (ServerSocket server = new ServerSocket(port)) {
+                while(!server.isClosed()) {
                     Socket socket = server.accept();
                     try (OutputStream out = socket.getOutputStream()) {
                         out.write("HTTP/1.1 200 OK\r\n\r\n".getBytes());
@@ -91,8 +92,10 @@ public class Grabber implements Grab {
             JobDataMap map = context.getJobDetail().getJobDataMap();
             Store store = (Store) map.get("store");
             Parse parse = (Parse) map.get("parse");
-            List<Post> postList = parse.list(FULL_LINK);
-            postList.forEach(store::save);
+            for (int i = 1; i <= PAGES; i++) {
+                List<Post> postList = parse.list("%s%s%d%s".formatted(SOURCE_LINK, PREFIX, i, SUFFIX));
+                postList.forEach(store::save);
+            }
         }
     }
 
