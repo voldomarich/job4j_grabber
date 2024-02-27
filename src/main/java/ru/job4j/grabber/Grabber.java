@@ -10,6 +10,7 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.net.ServerSocket;
 import java.nio.charset.Charset;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
 
@@ -17,26 +18,17 @@ import static org.quartz.JobBuilder.newJob;
 import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
 import static org.quartz.TriggerBuilder.newTrigger;
 
-public class Grabber implements Grab {
-
-    private final Parse parse;
-    private final Store store;
-    private final Scheduler scheduler;
-    private final int time;
+public class Grabber {
 
     private static final String SOURCE_LINK = "https://career.habr.com";
     public static final String PREFIX = "/vacancies?page=";
     public static final String SUFFIX = "&q=Java%20developer&type=all";
     private static final int PAGES = 5;
 
-    public Grabber(Parse parse, Store store, Scheduler scheduler, int time) {
-        this.parse = parse;
-        this.store = store;
-        this.scheduler = scheduler;
-        this.time = time;
+    public Grabber() {
     }
 
-    private static Properties config() throws IOException {
+    private Properties config() throws IOException {
         var config = new Properties();
         try (InputStream input = Grabber.class.getClassLoader()
                 .getResourceAsStream("app.properties")) {
@@ -45,9 +37,19 @@ public class Grabber implements Grab {
         return config;
     }
 
-    public void web(Store store, int port) {
+    private PsqlStore store() throws IOException, SQLException {
+        return new PsqlStore(config());
+    }
+
+    private Scheduler scheduler() throws SchedulerException {
+        Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
+        scheduler.start();
+        return scheduler;
+    }
+
+    public void web(Store store) {
         new Thread(() -> {
-            try (ServerSocket server = new ServerSocket(port)) {
+            try (ServerSocket server = new ServerSocket(Integer.parseInt(config().getProperty("port")))) {
                 while (!server.isClosed()) {
                     Socket socket = server.accept();
                     try (OutputStream out = socket.getOutputStream()) {
@@ -66,18 +68,16 @@ public class Grabber implements Grab {
         }).start();
     }
 
-    @Override
-    public void init() throws SchedulerException {
+    public void init(HabrCareerParse time, Store store, Scheduler scheduler) throws SchedulerException, IOException {
         JobDataMap data = new JobDataMap();
         data.put("store", store);
-        data.put("parse", parse);
         data.put("scheduler", scheduler);
         data.put("time", time);
         JobDetail job = newJob(GrabJob.class)
                 .usingJobData(data)
                 .build();
         SimpleScheduleBuilder times = simpleSchedule()
-                .withIntervalInSeconds(time)
+                .withIntervalInSeconds(Integer.parseInt(config().getProperty("time")))
                 .repeatForever();
         Trigger trigger = newTrigger()
                 .startNow()
@@ -100,14 +100,11 @@ public class Grabber implements Grab {
     }
 
     public static void main(String[] args) throws Exception {
-        Properties config = config();
-        Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
-        scheduler.start();
-        var parse = new HabrCareerParse(new HabrCareerDateTimeParser());
-        var store = new PsqlStore(config);
-        var time = Integer.parseInt(config.getProperty("time"));
-        Grabber grabber = new Grabber(parse, store, scheduler, time);
-        grabber.init();
-        grabber.web(store, Integer.parseInt(config.getProperty("port")));
+        Grabber grabber = new Grabber();
+        grabber.config();
+        Scheduler scheduler = grabber.scheduler();
+        Store store = grabber.store();
+        grabber.init(new HabrCareerParse(new HabrCareerDateTimeParser()), store, scheduler);
+        grabber.web(store);
     }
 }
