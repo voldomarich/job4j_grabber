@@ -23,7 +23,6 @@ public class Grabber {
     private static final String SOURCE_LINK = "https://career.habr.com";
     public static final String PREFIX = "/vacancies?page=";
     public static final String SUFFIX = "&q=Java%20developer&type=all";
-    private static final int PAGES = 5;
 
     public Grabber() {
     }
@@ -49,7 +48,8 @@ public class Grabber {
 
     public void web(Store store) {
         new Thread(() -> {
-            try (ServerSocket server = new ServerSocket(Integer.parseInt(config().getProperty("port")))) {
+            try (ServerSocket server = new ServerSocket(
+                    Integer.parseInt(config().getProperty("port")))) {
                 while (!server.isClosed()) {
                     Socket socket = server.accept();
                     try (OutputStream out = socket.getOutputStream()) {
@@ -68,7 +68,8 @@ public class Grabber {
         }).start();
     }
 
-    public void init(HabrCareerParse time, Store store, Scheduler scheduler) throws SchedulerException, IOException {
+    public void init(HabrCareerParse time, Store store, Scheduler scheduler)
+            throws SchedulerException, IOException {
         JobDataMap data = new JobDataMap();
         data.put("store", store);
         data.put("scheduler", scheduler);
@@ -91,11 +92,9 @@ public class Grabber {
         public void execute(JobExecutionContext context) {
             JobDataMap map = context.getJobDetail().getJobDataMap();
             Store store = (Store) map.get("store");
-            Parse parse = (Parse) map.get("parse");
-            for (int i = 1; i <= PAGES; i++) {
-                List<Post> postList = parse.list("%s%s%d%s".formatted(SOURCE_LINK, PREFIX, i, SUFFIX));
-                postList.forEach(store::save);
-            }
+            Parse parse = new HabrCareerParse(new HabrCareerDateTimeParser());
+            List<Post> postList = parse.list("%s%s%d%s".formatted(SOURCE_LINK, PREFIX, 1, SUFFIX));
+            postList.forEach(store::save);
         }
     }
 
